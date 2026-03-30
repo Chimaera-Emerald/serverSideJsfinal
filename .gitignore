@@ -1,6 +1,12 @@
 BACK/solut
 
 BACK/node_modules
+BACK/.env
+
+BACK/.git
+BACK/.gitignore
+
+BACK/*.env
 
 /node_modules
 memory.md
@@ -11,6 +17,8 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+.claude
 
 # Runtime data
 pids

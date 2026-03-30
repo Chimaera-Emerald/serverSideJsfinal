@@ -1,12 +1,12 @@
-# Exercise 02 — Express REST API with Layered Architecture
+# Exercise — Express REST API with MongoDB
 
 ## Goal
 
-Build a REST API using Express.js that exposes student data through a clean 3-layer architecture: **routes → controllers → services**. Data is served from a hardcoded JavaScript file (`data/students.js`).
+Build a REST API using Express.js that exposes student data through a clean 3-layer architecture: **routes → controllers → services**, backed by a **MongoDB** database via Mongoose.
 
 ## What you will build
 
-An HTTP server that responds to requests on `/students` endpoints, returning data from `data/students.js` through three separated layers.
+An HTTP server that responds to requests on `/api/students`, performing full CRUD operations against a MongoDB collection through three separated layers.
 
 ## Run it
 
@@ -14,6 +14,12 @@ An HTTP server that responds to requests on `/students` endpoints, returning dat
 cd BACK
 npm install
 npm run dev
+```
+
+Create a `.env` file inside `BACK/` with your MongoDB connection string:
+
+```
+MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/<dbname>
 ```
 
 The server starts on `http://localhost:3000`. Use Postman or the provided frontend to test your endpoints.
@@ -24,46 +30,106 @@ The server starts on `http://localhost:3000`. Use Postman or the provided fronte
 
 ```
 BACK/
-├── index.js                    ← entry point, sets up Express and mounts the router
-├── routes/
-│   └── studentsRoute.js        ← maps URL paths to controller functions
-├── controllers/
-│   └── studentsController.js   ← handles req/res, delegates logic to services
+├── index.js                          ← entry point: Express setup, DB connection, router mount
+├── config/
+│   └── db.js                         ← connects to MongoDB using Mongoose
+├── models/
+│   └── userModel.js                  ← Mongoose schema and model (already provided)
 ├── services/
-│   └── studentsService.js      ← business logic, reads from data/students.js
-data/
-└── students.js                 ← hardcoded student data (your "database")
+│   └── studentServiceMongoDB.js      ← database logic using the User model
+├── controllers/
+│   └── studentsController.js         ← handles req/res, delegates to services
+├── routes/
+│   └── studentsRoute.js              ← maps URL paths to controller functions
 ```
 
 ## The 3 layers
 
 | Layer | File | Responsibility |
 |---|---|---|
-| **Route** | `routes/studentsRoute.js` | Declares endpoints (`GET /`, `GET /:id`, `POST /`, …) and points each to a controller function |
-| **Controller** | `controllers/studentsController.js` | Receives `req` and `res`, calls the service, returns a JSON response with the right status code |
-| **Service** | `services/studentsService.js` | Contains the logic — find a student, create one, etc. Throws errors when something goes wrong |
+| **Route** | `routes/studentsRoute.js` | Declares endpoints and points each to a controller function |
+| **Controller** | `controllers/studentsController.js` | Receives `req`/`res`, awaits the service, returns JSON with the right status code |
+| **Service** | `services/studentServiceMongoDB.js` | Talks to MongoDB through the Mongoose model |
 
-## Data source
+## The User model
 
-`data/students.js` exports a plain JavaScript array that acts as an in-memory database:
+`models/userModel.js` is already written for you. It defines this schema:
 
 ```js
-export const students = [
-  { id: 1, name: "Alice Martin", email: "alice.martin@epita.fr", major: "Computer Science", gpa: 3.8 },
-  { id: 2, name: "Bob Dupont",   email: "bob.dupont@epita.fr",   major: "Computer Science", gpa: 3.5 },
-  { id: 3, name: "Clara Rousseau", email: "clara.rousseau@epita.fr", major: "Computer Science", gpa: 3.9 },
-];
+{
+  name:     { type: String, required: true },
+  email:    { type: String, required: true, unique: true },
+  gpa:      { type: Number, required: true },
+  password: { type: String, required: true },
+}
 ```
+
+Mongoose adds `_id`, `createdAt`, and `updatedAt` automatically.
 
 ## Endpoints to implement
 
 | Method | Path | Description | Success status |
 |---|---|---|---|
-| `GET` | `/students` | Return all students | `200` |
-| `GET` | `/students/:id` | Return one student by id | `200` |
-| `POST` | `/students` | Create a new student from request body | `201` |
+| `GET` | `/api/students` | Return all students | `200` |
+| `GET` | `/api/students/:id` | Return one student by id | `200` |
+| `POST` | `/api/students` | Create a new student | `201` |
+| `PUT` | `/api/students/:id` | Update a student | `200` |
+| `DELETE` | `/api/students/:id` | Delete a student | `200` |
+
+## Steps
+
+Work through the files in this order — each one depends on the previous:
+
+### Step 1 — `config/db.js`
+- Read `MONGO_URI` from `process.env`
+- Write an `async` function `connectToMongoDB` that calls `mongoose.connect()`, logs success, and calls `process.exit(1)` on failure
+- Export it
+
+### Step 2 — `services/studentServiceMongoDB.js`
+- Import the `User` model
+- Export these five functions (they all return Promises — no `async/await` needed here):
+
+| Function | Mongoose method |
+|---|---|
+| `findAllStudents()` | `User.find({})` |
+| `findStudentById(id)` | `User.findById(id)` |
+| `createStudentService(data)` | `User.create(data)` |
+| `updateStudentService(id, data)` | `User.findByIdAndUpdate(id, data)` |
+| `deleteStudentService(id)` | `User.findByIdAndDelete(id)` |
+
+### Step 3 — `controllers/studentsController.js`
+- Import the service functions
+- Write five `async` controllers: `getAllStudents`, `getStudentById`, `createStudent`, `updateStudent`, `deleteStudent`
+- Each one must:
+  - `await` the service call
+  - respond with the correct status code and JSON
+  - catch errors and respond with an error status + message
+
+### Step 4 — `routes/studentsRoute.js`
+- Import all five controllers
+- Create an Express `Router` and wire up the five routes
+- Export the router
+
+### Step 5 — `index.js`
+- Import `connectToMongoDB` and call it before starting the server
+- Mount the student router at `/api/students`
 
 ## Key concepts
+
+### async/await and Mongoose
+
+Mongoose methods (`.find()`, `.findById()`, etc.) return **Promises**. Always `await` them in your controllers, and wrap in `try/catch`:
+
+```js
+export const getAllStudents = async (req, res) => {
+  try {
+    const students = await findAllStudents();
+    res.status(200).json(students);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+```
 
 ### HTTP methods and CRUD
 
@@ -83,39 +149,22 @@ export const students = [
 | `404` | Not Found — resource does not exist |
 | `500` | Internal Server Error — something broke on the server |
 
-### CORS
-
-The frontend runs on a different origin than the backend. Without CORS the browser blocks the request.
-
-```js
-const cors = require("cors")
-app.use(cors())  // allow all origins
-```
-
-## Steps
-
-1. **`index.js`** — require Express and `cors`, set up middleware (`express.json()`, `cors()`), mount the student router on `/students`, start listening on port 3000
-2. **`services/studentsService.js`** — import `students` from `data/students.js`, write `findAllUsers()` (returns the array or throws), `findUser(id)` (finds by id or throws), and `createStudentService(newStudent)` (pushes to the array)
-3. **`controllers/studentsController.js`** — import the service functions, write `getAllStudents`, `getStudentById`, and `createStudent` — each one calls the service inside a `try/catch` and sends the appropriate JSON response and status code
-4. **`routes/studentsRoute.js`** — create an Express `Router`, wire up `GET /`, `GET /:id`, and `POST /` to the controller functions, export the router
-
 ## ES6 modules
 
-`package.json` has `"type": "module"` which means you must use `import`/`export` syntax instead of `require`:
+`package.json` has `"type": "module"` — use `import`/`export` syntax throughout:
 
 ```js
-// importing
-import express from "express"
-import { findAllUsers } from "../services/studentsService.js"
+import express from "express";
+import { findAllStudents } from "../services/studentServiceMongoDB.js";
 
-// exporting
-export const getAllStudents = (req, res) => { ... }
-export default studentRouter
+export const getAllStudents = async (req, res) => { ... };
+export default studentRouter;
 ```
 
 ## Hints
 
-- `req.params.id` gives you the `:id` from the URL as a **string** — use `parseInt()` to compare it with numeric ids
-- `req.body` contains the JSON payload sent in a `POST` request — make sure `express.json()` middleware is active in `index.js`
-- Controllers should never contain logic — if something can go wrong, move it to the service and `throw` an error there
+- `req.params.id` gives you the `:id` from the URL — pass it directly to Mongoose, **no `parseInt()`** (MongoDB uses string `_id`s)
+- `req.body` contains the JSON payload — make sure `express.json()` middleware is active in `index.js`
+- Controllers should never contain database logic — keep that in the service layer
 - Use `res.status(code).json(data)` to set the status code and send JSON in one call
+- Don't forget to add your `.env` file — without `MONGO_URI` the server will exit immediately
