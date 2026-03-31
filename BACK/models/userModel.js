@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    major: {
+      type: String,
+      required: true,
+    },
   },
   {
     timestamps: true,
