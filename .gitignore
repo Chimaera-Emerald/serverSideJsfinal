@@ -25,3 +25,6 @@ pids
 *.pid
 *.seed
 *.pid.lock
+
+
+CLAUDE.md
