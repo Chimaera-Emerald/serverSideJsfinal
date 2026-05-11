@@ -1,25 +1,23 @@
-// index.js
+// index.js  (updated — only the new lines are marked)
 import express from "express";
 import cors from "cors";
 import { connectToMongoDB } from "./config/db.js";
 import studentRouter from "./routes/studentsRoute.js";
+import courseRouter from "./routes/courseRoute.js";   // ← NEW
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Connect to MongoDB BEFORE starting the server
 connectToMongoDB();
 
-// Middleware — order matters: parse before routing
-app.use(express.json());               // parses JSON request bodies into req.body
-app.use(express.urlencoded({ extended: true })); // parses form data
-app.use(cors());                       // allows cross-origin requests (FRONT can call BACK)
-app.use(express.static("public"));     // serves files in /public as static assets
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(express.static("public"));
 
-// Mount the student router
 app.use("/api/students", studentRouter);
+app.use("/api/courses", courseRouter);               // ← NEW
 
-// Health check
 app.get("/", (req, res) => {
   res.send("Server is running ...");
 });
