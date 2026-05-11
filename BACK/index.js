@@ -1,23 +1,25 @@
+// index.js
 import express from "express";
 import cors from "cors";
-
-// TODO 1: Import connectToMongoDB from ./config/db.js
-// TODO 2: Import studentRouter from ./routes/studentsRoute.js
+import { connectToMongoDB } from "./config/db.js";
+import studentRouter from "./routes/studentsRoute.js";
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// TODO 3: Call connectToMongoDB() here to establish the DB connection
+// Connect to MongoDB BEFORE starting the server
+connectToMongoDB();
 
-// Middleware — already set up for you
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use(express.static('../FRONT'))
+// Middleware — order matters: parse before routing
+app.use(express.json());               // parses JSON request bodies into req.body
+app.use(express.urlencoded({ extended: true })); // parses form data
+app.use(cors());                       // allows cross-origin requests (FRONT can call BACK)
+app.use(express.static("public"));     // serves files in /public as static assets
 
-// TODO 4: Mount studentRouter at "/api/students"
-// Hint: app.use("/api/students", studentRouter)
+// Mount the student router
+app.use("/api/students", studentRouter);
 
+// Health check
 app.get("/", (req, res) => {
   res.send("Server is running ...");
 });
