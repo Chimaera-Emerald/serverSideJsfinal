@@ -1,15 +1,32 @@
+// routes/studentsRoute.js
 import express from "express";
-
-// TODO 1: Import getAllStudents, getStudentById, createStudent, updateStudent, deleteStudent
-//         from ../controllers/studentsController.js
+import {
+  getAllStudents,
+  getStudentById,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  signup,
+  login,
+} from "../controllers/studentsController.js";
 
 const studentRouter = express.Router();
 
-// TODO 2: Wire up the routes:
-//   GET    /        → getAllStudents
-//   GET    /:id     → getStudentById
-//   POST   /        → createStudent
-//   PUT    /:id     → updateStudent
-//   DELETE /:id     → deleteStudent
+// AUTH ROUTES (no protection needed)
+studentRouter.post("/signup", signup);
+studentRouter.post("/login", login);
+
+// CRUD ROUTES (protected would go here if needed)
+// GET /api/students        → getAllStudents
+studentRouter.get("/", getAllStudents);
+
+// GET /api/students/:id    → getStudentById
+studentRouter.get("/:id", getStudentById);
+
+// POST /api/students       → createStudent
+studentRouter.post("/", createStudent);
+
+studentRouter.put("/:id", updateStudent);
+studentRouter.delete("/:id", deleteStudent);
 
 export default studentRouter;
